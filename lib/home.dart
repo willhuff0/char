@@ -45,7 +45,7 @@ class Home extends StatelessWidget {
                 SizedBox(width: 14.0),
               ],
             ),
-          )
+          ),
         ],
       ),
       // body: Padding(
