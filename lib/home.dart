@@ -48,14 +48,15 @@ class Home extends StatelessWidget {
           ),
         ],
       ),
-      // body: Padding(
-      //   padding: const EdgeInsets.all(24.0),
-      //   child: Column(
-      //     children: [
-      //       if (!isDesktop) CharSearchBar(),
-      //     ],
-      //   ),
-      // ),
+      body: ListView(
+        padding: EdgeInsets.all(24.0),
+        children: [
+          ListTile(
+            title: Text('Bedwars convention'),
+            leading: CircleAvatar(),
+          ),
+        ],
+      ),
     );
   }
 }
