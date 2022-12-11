@@ -1,63 +1,96 @@
+import 'package:char/firebase/room.dart';
+import 'package:char/firebase/user.dart';
 import 'package:char/main.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class Home extends StatelessWidget {
-  const Home({super.key});
+class Home extends StatefulWidget {
+  final User user;
+
+  const Home({required this.user, super.key});
+
+  @override
+  State<Home> createState() => _HomeState();
+}
+
+class _HomeState extends State<Home> {
+  late final Future future;
+  late final CharUser user;
+  late final List<CharRoom> rooms;
+
+  @override
+  void initState() {
+    future = CharUser.idAndPull(widget.user.uid).then((value) async {
+      user = value;
+      rooms = await user.getJoinedRooms();
+      if (mounted) setState(() {});
+    }).then((value) => true);
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 64,
-        shape: Border(bottom: BorderSide(color: Colors.white10, width: 1.0)),
-        leading: Center(child: Text('Char', style: Theme.of(context).textTheme.titleLarge)),
-        leadingWidth: 82.0,
-        automaticallyImplyLeading: false,
-        centerTitle: true,
-        title: isDesktop
-            ? Padding(
-                padding: const EdgeInsets.only(right: 24, top: 10, bottom: 10),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: 500.0, maxWidth: 500.0),
-                  child: Center(child: CharSearchBar()),
-                ),
-              )
-            : null,
-        actions: [
-          SizedBox(
-            height: 64.0,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (!isDesktop) ...[
-                  IconButton(
-                    onPressed: () {
-                      Navigator.of(context).pushNamed('search');
-                    },
-                    icon: Icon(Icons.search),
-                    constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0),
+    return FutureBuilder(
+        initialData: false,
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.data == true) {
+            return Scaffold(
+              appBar: AppBar(
+                toolbarHeight: 64,
+                shape: Border(bottom: BorderSide(color: Colors.white10, width: 1.0)),
+                leading: Center(child: Text('Char', style: Theme.of(context).textTheme.titleLarge)),
+                leadingWidth: 82.0,
+                automaticallyImplyLeading: false,
+                centerTitle: true,
+                title: isDesktop
+                    ? Padding(
+                        padding: const EdgeInsets.only(right: 24, top: 10, bottom: 10),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minWidth: 500.0, maxWidth: 500.0),
+                          child: Center(child: CharSearchBar()),
+                        ),
+                      )
+                    : null,
+                actions: [
+                  SizedBox(
+                    height: 64.0,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!isDesktop) ...[
+                          IconButton(
+                            onPressed: () {
+                              Navigator.of(context).pushNamed('search');
+                            },
+                            icon: Icon(Icons.search),
+                            constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0),
+                          ),
+                          SizedBox(width: 4.0),
+                        ],
+                        IconButton(onPressed: () {}, icon: Icon(Icons.settings), constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0)),
+                        SizedBox(width: 4.0),
+                        IconButton(onPressed: () {}, icon: Icon(Icons.person), constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0)),
+                        SizedBox(width: 14.0),
+                      ],
+                    ),
                   ),
-                  SizedBox(width: 4.0),
                 ],
-                IconButton(onPressed: () {}, icon: Icon(Icons.settings), constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0)),
-                SizedBox(width: 4.0),
-                IconButton(onPressed: () {}, icon: Icon(Icons.person), constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0)),
-                SizedBox(width: 14.0),
-              ],
-            ),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: EdgeInsets.all(24.0),
-        children: [
-          ListTile(
-            title: Text('Bedwars convention'),
-            leading: CircleAvatar(),
-          ),
-        ],
-      ),
-    );
+              ),
+              body: ListView(
+                padding: EdgeInsets.all(24.0),
+                children: [
+                  ListTile(
+                    title: Text('Bedwars convention'),
+                    leading: CircleAvatar(),
+                  ),
+                ],
+              ),
+            );
+          } else {
+            return Center(child: CircularProgressIndicator());
+          }
+        });
   }
 }
 

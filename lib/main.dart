@@ -1,4 +1,5 @@
 import 'package:char/chat.dart';
+import 'package:char/firebase/room.dart';
 import 'package:char/firebase_options.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -55,7 +56,7 @@ class App extends StatelessWidget {
           ),
           routes: {
             'search': (context) => HomeSearchPage(),
-            'chat': (context) => ChatRoomPage(),
+            'chat': (context) => ChatRoomPage(room: CharRoom.id('lFWv9JWENFPeNpmI1quX')),
           },
           home: LayoutBuilder(builder: (context, constraints) {
             isDesktop = constraints.maxWidth > 600;
@@ -67,8 +68,8 @@ class App extends StatelessWidget {
                   return StreamBuilder(
                     stream: FirebaseAuth.instance.authStateChanges(),
                     builder: (context, snapshot) {
-                      if (snapshot.hasData) {
-                        return Home();
+                      if (snapshot.data != null) {
+                        return Home(user: snapshot.data!);
                       }
                       return Landing();
                     },

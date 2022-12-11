@@ -1,24 +1,32 @@
-import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-class Room {
-  late final DatabaseReference ref;
+class CharRoom {
+  late final DocumentReference ref;
 
   late final String name, owner;
-  late final List<String> aliases;
+  late final List<RoomMemberSettings> members;
   late final RoomSettings settings;
 
-  Room.id(String id) {
-    ref = FirebaseDatabase.instance.ref('groups/$id');
+  CharRoom.id(String id) {
+    ref = FirebaseFirestore.instance.doc('rooms/$id');
   }
 
   Future pull() async {
     final snapshot = await ref.get().then((value) => value.data()! as Map);
     name = snapshot['name'];
     owner = snapshot['owner'];
-    aliases = (snapshot['aliases'] as List).cast();
+    members = (snapshot['members'] as List).map((e) => RoomMemberSettings.fromMap(e)).toList();
     settings = RoomSettings.fromMap(this, snapshot['settings']);
   }
+
+  static Future<CharRoom> idAndPull(String id) async {
+    final room = CharRoom.id(id);
+    await room.pull();
+    return room;
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> get messagesStream => ref.collection('messages').snapshots();
 
   // Future<List<CharMessage>> getMessages(DocumentSnapshot startAfter, int count) async {
   //   final snapshot = await ref.collection('messages').startAfterDocument(startAfter).limit(count).get();
@@ -28,8 +36,18 @@ class Room {
   //Stream<CharMessage> getMessages() {}
 }
 
+class RoomMemberSettings {
+  late final String alias;
+  late final int notificationOption;
+
+  RoomMemberSettings.fromMap(Map data) {
+    alias = data['alias'];
+    notificationOption = data['notify'];
+  }
+}
+
 class RoomSettings {
-  late final Room room;
+  late final CharRoom room;
   late final Color color;
   late final MessageLifetimeMode messageLifetimeMode;
 
@@ -46,18 +64,3 @@ enum MessageLifetimeMode {
 
 int _colorToJson(Color value) => value.value;
 Color _colorFromJson(int value) => Color(value);
-
-class CharMessage {
-  late final String? message;
-  late final Uri? attachment;
-
-  CharMessage.fromMap(Map data) {
-    message = data['message'];
-    if (data['attachment'] != null) attachment = Uri.tryParse(data['attachment']);
-  }
-  CharMessage.fromString(String data) {
-    message = data;
-  }
-
-  CharMessage([this.message, this.attachment]);
-}
