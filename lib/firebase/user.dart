@@ -1,5 +1,6 @@
 import 'package:char/firebase/room.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CharUser {
   late final DocumentReference ref;
@@ -12,14 +13,19 @@ class CharUser {
     ref = FirebaseFirestore.instance.doc('users/$id');
   }
 
-  Future pull({bool createIfNew = true}) async {
+  Future<bool> pull({bool createIfNew = true}) async {
     var snapshot = await ref.get().then((value) => value.data() as Map?);
     if (snapshot == null) {
-      snapshot
+      if (!createIfNew) return false;
+      ref.set(snapshot = {
+        'name': FirebaseAuth.instance.currentUser?.displayName,
+      });
+      return true;
     }
     defaultAlias = snapshot['name'];
-    ownedRooms = snapshot['ownedRooms'];
-    joinedRooms = snapshot['ownedRooms'];
+    ownedRooms = snapshot['ownedRooms'] ?? [];
+    joinedRooms = snapshot['ownedRooms'] ?? [];
+    return true;
   }
 
   static Future<CharUser> idAndPull(String id, {bool createIfNew = true}) async {
