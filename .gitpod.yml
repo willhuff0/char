@@ -1,0 +1,7 @@
+image:
+  file: .gitpod.Dockerfile
+tasks:
+- before: >
+    source ~/.bashrc
+ports:
+- port: 8080

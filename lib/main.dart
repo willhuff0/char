@@ -4,6 +4,7 @@ import 'package:char/firebase_options.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -16,6 +17,15 @@ void main() {
   runApp(App());
 }
 
+void checkRedirectLogin() async {
+  try {
+    final result = await FirebaseAuth.instance.getRedirectResult();
+    if (result.user != null) {
+      await result.user!.reload();
+    }
+  } finally {}
+}
+
 const brandColor = Color(0xFF3CA533);
 
 class App extends StatelessWidget {
@@ -23,7 +33,12 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final future = Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).then((value) => true);
+    final future =
+        Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform)
+            .then((value) {
+      if (kIsWeb) checkRedirectLogin();
+      return true;
+    });
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
         ColorScheme lightColorScheme;
@@ -56,7 +71,7 @@ class App extends StatelessWidget {
           ),
           routes: {
             'search': (context) => HomeSearchPage(),
-            'chat': (context) => ChatRoomPage(room: CharRoom.id('lFWv9JWENFPeNpmI1quX')),
+            //  'chat': (context) => ChatRoomPage(room: CharRoom.id('test')),
           },
           home: LayoutBuilder(builder: (context, constraints) {
             isDesktop = constraints.maxWidth > 600;
@@ -75,7 +90,8 @@ class App extends StatelessWidget {
                     },
                   );
                 }
-                return Scaffold(body: Center(child: CircularProgressIndicator()));
+                return Scaffold(
+                    body: Center(child: CircularProgressIndicator()));
               },
             );
           }),
@@ -102,27 +118,45 @@ class _LandingState extends State<Landing> {
         child: Builder(builder: (context) {
           final children = [
             Text('Char', style: TextStyle(fontSize: 28.0)),
-            ...isDesktop ? [SizedBox(width: 24.0), SizedBox(height: 60, child: VerticalDivider()), SizedBox(width: 24.0)] : [SizedBox(height: 24.0)],
+            ...isDesktop
+                ? [
+                    SizedBox(width: 24.0),
+                    SizedBox(height: 60, child: VerticalDivider()),
+                    SizedBox(width: 24.0)
+                  ]
+                : [SizedBox(height: 24.0)],
             ElevatedButton(
               onPressed: loading
                   ? null
                   : () async {
                       setState(() => loading = true);
-                      final googleUser = await GoogleSignIn().signIn();
-                      final googleAuth = await googleUser?.authentication;
-                      if (googleAuth != null) {
-                        final credential = GoogleAuthProvider.credential(
-                          accessToken: googleAuth.accessToken,
-                          idToken: googleAuth.idToken,
-                        );
-                        await FirebaseAuth.instance.signInWithCredential(credential);
-                      } else {
+                      try {
+                        if (kIsWeb) {
+                          final provider = GoogleAuthProvider()
+                            ..scopes.addAll(['profile', 'email']);
+
+                          await FirebaseAuth.instance.signInWithPopup(provider);
+                          return;
+                        }
+
+                        final googleUser = await GoogleSignIn().signIn();
+                        final googleAuth = await googleUser?.authentication;
+                        if (googleAuth != null) {
+                          final credential = GoogleAuthProvider.credential(
+                            accessToken: googleAuth.accessToken,
+                            idToken: googleAuth.idToken,
+                          );
+                          await FirebaseAuth.instance
+                              .signInWithCredential(credential);
+                        }
+                      } finally {
                         setState(() => loading = false);
                       }
                     },
               style: ButtonStyle(
                 padding: MaterialStateProperty.all(EdgeInsets.all(22.0)),
-                shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0))),
+                shape: MaterialStateProperty.all(RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0))),
               ),
               child: Text('Sign in with Google'),
             ),

@@ -38,16 +38,21 @@ class _HomeState extends State<Home> {
             return Scaffold(
               appBar: AppBar(
                 toolbarHeight: 64,
-                shape: Border(bottom: BorderSide(color: Colors.white10, width: 1.0)),
-                leading: Center(child: Text('Char', style: Theme.of(context).textTheme.titleLarge)),
+                shape: Border(
+                    bottom: BorderSide(color: Colors.white10, width: 1.0)),
+                leading: Center(
+                    child: Text('Char',
+                        style: Theme.of(context).textTheme.titleLarge)),
                 leadingWidth: 82.0,
                 automaticallyImplyLeading: false,
                 centerTitle: true,
                 title: isDesktop
                     ? Padding(
-                        padding: const EdgeInsets.only(right: 24, top: 10, bottom: 10),
+                        padding: const EdgeInsets.only(
+                            right: 24, top: 10, bottom: 10),
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(minWidth: 500.0, maxWidth: 500.0),
+                          constraints:
+                              BoxConstraints(minWidth: 500.0, maxWidth: 500.0),
                           child: Center(child: CharSearchBar()),
                         ),
                       )
@@ -64,13 +69,22 @@ class _HomeState extends State<Home> {
                               Navigator.of(context).pushNamed('search');
                             },
                             icon: Icon(Icons.search),
-                            constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0),
+                            constraints:
+                                BoxConstraints(minWidth: 54.0, minHeight: 54.0),
                           ),
                           SizedBox(width: 4.0),
                         ],
-                        IconButton(onPressed: () {}, icon: Icon(Icons.settings), constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0)),
+                        IconButton(
+                            onPressed: () {},
+                            icon: Icon(Icons.settings),
+                            constraints: BoxConstraints(
+                                minWidth: 54.0, minHeight: 54.0)),
                         SizedBox(width: 4.0),
-                        IconButton(onPressed: () {}, icon: Icon(Icons.person), constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0)),
+                        IconButton(
+                            onPressed: () {},
+                            icon: Icon(Icons.person),
+                            constraints: BoxConstraints(
+                                minWidth: 54.0, minHeight: 54.0)),
                         SizedBox(width: 14.0),
                       ],
                     ),
@@ -79,16 +93,16 @@ class _HomeState extends State<Home> {
               ),
               body: ListView(
                 padding: EdgeInsets.all(24.0),
-                children: [
-                  ListTile(
-                    title: Text('Bedwars convention'),
-                    leading: CircleAvatar(),
-                  ),
-                ],
+                children: rooms
+                    .map((e) => ListTile(
+                          leading: CircleAvatar(),
+                          title: Text(e.name),
+                        ))
+                    .toList(),
               ),
             );
           } else {
-            return Center(child: CircularProgressIndicator());
+            return Scaffold(body: Center(child: CircularProgressIndicator()));
           }
         });
   }
@@ -107,7 +121,9 @@ class CharSearchBar extends StatelessWidget {
     return TextField(
       autofocus: focused,
       decoration: InputDecoration(
-        border: OutlineInputBorder(borderSide: BorderSide.none, borderRadius: BorderRadius.circular(999.9)),
+        border: OutlineInputBorder(
+            borderSide: BorderSide.none,
+            borderRadius: BorderRadius.circular(999.9)),
         fillColor: Colors.black26,
         contentPadding: EdgeInsets.symmetric(horizontal: 18.0, vertical: 0.0),
         filled: true,

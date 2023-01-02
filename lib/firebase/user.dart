@@ -14,26 +14,31 @@ class CharUser {
   }
 
   Future<bool> pull({bool createIfNew = true}) async {
-    var snapshot = await ref.get().then((value) => value.data() as Map?);
-    if (snapshot == null) {
-      if (!createIfNew) return false;
-      ref.set(snapshot = {
+    var snapshot = await ref.get().then((value) async {
+      if (value.exists) return value.data() as Map?;
+      if (!createIfNew) return null;
+      final newSnapshot = {
         'name': FirebaseAuth.instance.currentUser?.displayName,
-      });
-      return true;
-    }
+      };
+      await ref.set(newSnapshot);
+      return newSnapshot;
+    });
+    if (snapshot == null) return false;
     defaultAlias = snapshot['name'];
     ownedRooms = snapshot['ownedRooms'] ?? [];
-    joinedRooms = snapshot['ownedRooms'] ?? [];
+    joinedRooms = snapshot['joinedRooms'] ?? [];
     return true;
   }
 
-  static Future<CharUser> idAndPull(String id, {bool createIfNew = true}) async {
+  static Future<CharUser> idAndPull(String id,
+      {bool createIfNew = true}) async {
     final user = CharUser.id(id);
     await user.pull(createIfNew: createIfNew);
     return user;
   }
 
-  Future<List<CharRoom>> getOwnedRooms() => Future.wait(ownedRooms.map((e) => CharRoom.idAndPull(e)));
-  Future<List<CharRoom>> getJoinedRooms() => Future.wait(joinedRooms.map((e) => CharRoom.idAndPull(e)));
+  Future<List<CharRoom>> getOwnedRooms() =>
+      Future.wait(ownedRooms.map((e) => CharRoom.idAndPull(e)));
+  Future<List<CharRoom>> getJoinedRooms() =>
+      Future.wait(joinedRooms.map((e) => CharRoom.idAndPull(e)));
 }
