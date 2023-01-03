@@ -14,20 +14,20 @@ class CharUser {
     ref = FirebaseFirestore.instance.doc('users/$id');
   }
 
-  Future<bool> pull({bool createIfNew = false}) async {
-    final snapshot = await ref.get();
-    late Map<String, dynamic> data;
-    if (!snapshot.exists) {
-      if (!createIfNew) return false;
-      await ref.set(data = {
-        'name': FirebaseAuth.instance.currentUser!.displayName,
-      });
-    } else {
-      data = snapshot.data()! as Map<String, dynamic>;
-    }
-    defaultAlias = data['name'];
-    ownedRooms = data['ownedRooms']?.cast<String>() ?? [];
-    joinedRooms = data['ownedRooms']?.cast<String>() ?? [];
+  Future<bool> pull({bool createIfNew = true}) async {
+    var snapshot = await ref.get().then((value) async {
+      if (value.exists) return value.data() as Map?;
+      if (!createIfNew) return null;
+      final newSnapshot = {
+        'name': FirebaseAuth.instance.currentUser?.displayName,
+      };
+      await ref.set(newSnapshot);
+      return newSnapshot;
+    });
+    if (snapshot == null) return false;
+    defaultAlias = snapshot['name'];
+    ownedRooms = snapshot['ownedRooms'] ?? [];
+    joinedRooms = snapshot['joinedRooms'] ?? [];
     return true;
   }
 

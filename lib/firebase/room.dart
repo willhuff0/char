@@ -7,7 +7,7 @@ class CharRoom {
   late final DocumentReference ref;
 
   late final String name, owner;
-  late final List<RoomMemberSettings> members;
+  late final Map<String, RoomMemberSettings> members;
   late final List<String>? invites;
   late final RoomSettings settings;
   late CharMessage? lastMessage;
