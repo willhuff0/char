@@ -1,6 +1,7 @@
 import 'package:char/firebase/room.dart';
 import 'package:char/firebase/user.dart';
 import 'package:char/main.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -20,8 +21,8 @@ class _HomeState extends State<Home> {
 
   @override
   void initState() {
-    future = CharUser.idAndPull(widget.user.uid).then((value) async {
-      user = value;
+    future = CharUser.idAndPull(widget.user.uid, createIfNew: true).then((value) async {
+      user = value!;
       rooms = await user.getJoinedRooms();
       if (mounted) setState(() {});
     }).then((value) => true);
@@ -39,10 +40,10 @@ class _HomeState extends State<Home> {
               appBar: AppBar(
                 toolbarHeight: 64,
                 shape: Border(bottom: BorderSide(color: Colors.white10, width: 1.0)),
-                leading: Center(child: Text('Char', style: Theme.of(context).textTheme.titleLarge)),
                 leadingWidth: 82.0,
                 automaticallyImplyLeading: false,
                 centerTitle: true,
+                leading: Center(child: Text('Char', style: Theme.of(context).textTheme.titleLarge)),
                 title: isDesktop
                     ? Padding(
                         padding: const EdgeInsets.only(right: 24, top: 10, bottom: 10),
@@ -70,7 +71,12 @@ class _HomeState extends State<Home> {
                         ],
                         IconButton(onPressed: () {}, icon: Icon(Icons.settings), constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0)),
                         SizedBox(width: 4.0),
-                        IconButton(onPressed: () {}, icon: Icon(Icons.person), constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0)),
+                        IconButton(
+                            onPressed: () {
+                              Navigator.pushNamed(context, 'profile', arguments: user);
+                            },
+                            icon: Icon(Icons.person),
+                            constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0)),
                         SizedBox(width: 14.0),
                       ],
                     ),
@@ -78,13 +84,77 @@ class _HomeState extends State<Home> {
                 ],
               ),
               body: ListView(
-                padding: EdgeInsets.all(24.0),
-                children: [
-                  ListTile(
-                    title: Text('Bedwars convention'),
-                    leading: CircleAvatar(),
-                  ),
-                ],
+                padding: EdgeInsets.all(14.0),
+                children: rooms
+                    .map((e) => ListTile(
+                          contentPadding: EdgeInsets.all(7.0),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0)),
+                          title: Text(e.name),
+                          subtitle: e.lastMessage == null ? null : Text(e.lastMessage!.accessibilityText),
+                          leading: Padding(
+                            padding: const EdgeInsets.all(7.0),
+                            child: CircleAvatar(),
+                          ),
+                          onTap: () {
+                            Navigator.pushNamed(context, 'chat', arguments: e);
+                          },
+                        ))
+                    .toList(),
+              ),
+              floatingActionButton: FloatingActionButton(
+                child: Icon(Icons.add),
+                onPressed: () async {
+                  final result = await showModalBottomSheet(
+                      context: context,
+                      builder: (context) {
+                        return BottomSheet(
+                            onClosing: () {},
+                            builder: (context) {
+                              return Padding(
+                                padding: const EdgeInsets.all(24.0),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextField(
+                                            minLines: 1,
+                                            maxLines: 3,
+                                            decoration: InputDecoration(
+                                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+                                              hintText: 'Add members to new room',
+                                            ),
+                                            keyboardType: TextInputType.name,
+                                          ),
+                                        ),
+                                        SizedBox(width: 14.0),
+                                        FloatingActionButton(
+                                          onPressed: () async {
+                                            final room = await CharRoom.create(user, 'bruh');
+                                            Navigator.pop(context, room);
+                                          },
+                                          child: Icon(Icons.navigate_next),
+                                        )
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            });
+                      });
+                  if (result != null) {
+                    final id = result.ref.id;
+                    user.ref.update({
+                      'ownedRooms': FieldValue.arrayUnion([id]),
+                      'joinedRooms': FieldValue.arrayUnion([id]),
+                    });
+                    setState(() {
+                      rooms.add(result);
+                      user.ownedRooms.add(id);
+                      user.joinedRooms.add(id);
+                    });
+                  }
+                },
               ),
             );
           } else {
@@ -140,6 +210,7 @@ class HomeSearchPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 64,
+        shape: Border(bottom: BorderSide(color: Colors.white10, width: 1.0)),
         centerTitle: true,
         title: CharSearchBar(focused: true),
       ),

@@ -1,13 +1,19 @@
 import 'package:char/chat.dart';
 import 'package:char/firebase/room.dart';
+import 'package:char/firebase/user.dart';
 import 'package:char/firebase_options.dart';
+import 'package:char/profile.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'home.dart';
+
+const useEmulators = true;
 
 late bool isDesktop;
 
@@ -23,7 +29,14 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final future = Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).then((value) => true);
+    final future = Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).then((value) async {
+      if (useEmulators) {
+        await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
+        FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8080);
+        await FirebaseStorage.instance.useStorageEmulator('127.0.0.1', 9199);
+      }
+      return true;
+    });
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
         ColorScheme lightColorScheme;
@@ -54,31 +67,44 @@ class App extends StatelessWidget {
             colorScheme: darkColorScheme,
             scaffoldBackgroundColor: darkColorScheme.background,
           ),
-          routes: {
-            'search': (context) => HomeSearchPage(),
-            'chat': (context) => ChatRoomPage(room: CharRoom.id('lFWv9JWENFPeNpmI1quX')),
+          onGenerateRoute: (settings) {
+            switch (settings.name) {
+              case null:
+              case '/':
+                return MaterialPageRoute(
+                    builder: (context) => LayoutBuilder(builder: (context, constraints) {
+                          isDesktop = constraints.maxWidth > 600;
+                          return FutureBuilder(
+                            initialData: false,
+                            future: future,
+                            builder: (context, snapshot) {
+                              if (snapshot.data == true) {
+                                return StreamBuilder(
+                                  stream: FirebaseAuth.instance.authStateChanges(),
+                                  builder: (context, snapshot) {
+                                    if (snapshot.data != null) {
+                                      print('Logged in ${snapshot.data!.email}.');
+                                      return Home(user: snapshot.data!);
+                                    }
+                                    print('Logged out.');
+                                    return Landing();
+                                  },
+                                );
+                              }
+                              return Scaffold(body: Center(child: CircularProgressIndicator()));
+                            },
+                          );
+                        }));
+              case 'search':
+                return MaterialPageRoute(builder: (context) => HomeSearchPage());
+              case 'chat':
+                if (settings.arguments != null) return MaterialPageRoute(builder: (context) => ChatRoomPage(room: settings.arguments as CharRoom));
+                return null;
+              case 'profile':
+                if (settings.arguments != null) return MaterialPageRoute(builder: (context) => ProfilePage(user: settings.arguments as CharUser));
+                return null;
+            }
           },
-          home: LayoutBuilder(builder: (context, constraints) {
-            isDesktop = constraints.maxWidth > 600;
-            return FutureBuilder(
-              initialData: false,
-              future: future,
-              builder: (context, snapshot) {
-                if (snapshot.data == true) {
-                  return StreamBuilder(
-                    stream: FirebaseAuth.instance.authStateChanges(),
-                    builder: (context, snapshot) {
-                      if (snapshot.data != null) {
-                        return Home(user: snapshot.data!);
-                      }
-                      return Landing();
-                    },
-                  );
-                }
-                return Scaffold(body: Center(child: CircularProgressIndicator()));
-              },
-            );
-          }),
         );
       },
     );
