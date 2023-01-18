@@ -13,7 +13,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import 'home.dart';
 
-const useEmulators = true;
+const useEmulators = false;
+
+typedef FirestoreMap = Map<String, Object?>;
 
 late bool isDesktop;
 
@@ -22,23 +24,30 @@ void main() {
   runApp(App());
 }
 
-void checkRedirectLogin() async {
-  try {
-    final result = await FirebaseAuth.instance.getRedirectResult();
-    if (result.user != null) {
-      await result.user!.reload();
-    }
-  } finally {}
-}
+// void checkRedirectLogin() async {
+//   try {
+//     final result = await FirebaseAuth.instance.getRedirectResult();
+//     if (result.user != null) {
+//       await result.user!.reload();
+//     }
+//   } finally {}
+// }
 
 const brandColor = Color(0xFF3CA533);
 
-class App extends StatelessWidget {
+class App extends StatefulWidget {
   const App({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final future = Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).then((value) async {
+  State<App> createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  late Future future;
+
+  @override
+  void initState() {
+    future = Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).then((value) async {
       if (useEmulators) {
         await FirebaseAuth.instance.useAuthEmulator('127.0.0.1', 9099);
         FirebaseFirestore.instance.useFirestoreEmulator('127.0.0.1', 8080);
@@ -46,6 +55,11 @@ class App extends StatelessWidget {
       }
       return true;
     });
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) {
         ColorScheme lightColorScheme;
@@ -69,12 +83,12 @@ class App extends StatelessWidget {
           theme: ThemeData(
             useMaterial3: true,
             colorScheme: lightColorScheme,
-            scaffoldBackgroundColor: lightColorScheme.background,
+            //scaffoldBackgroundColor: lightColorScheme.background,
           ),
           darkTheme: ThemeData(
-            useMaterial3: true,
+            useMaterial3: true, brightness: Brightness.dark,
             colorScheme: darkColorScheme,
-            scaffoldBackgroundColor: darkColorScheme.background,
+            //scaffoldBackgroundColor: darkColorScheme.background,
           ),
           onGenerateRoute: (settings) {
             switch (settings.name) {
@@ -100,14 +114,14 @@ class App extends StatelessWidget {
                                   },
                                 );
                               }
-                              return Scaffold(body: Center(child: CircularProgressIndicator()));
+                              return Scaffold(body: Center(child: Text('Char')));
                             },
                           );
                         }));
               case 'search':
                 return MaterialPageRoute(builder: (context) => HomeSearchPage());
               case 'chat':
-                if (settings.arguments != null) return MaterialPageRoute(builder: (context) => ChatRoomPage(room: settings.arguments as CharRoom));
+                if (settings.arguments != null) return MaterialPageRoute(builder: (context) => ChatRoomPage(user: (settings.arguments as List)[0] as CharUser, room: (settings.arguments as List)[1] as CharRoom));
                 return null;
               case 'profile':
                 if (settings.arguments != null) return MaterialPageRoute(builder: (context) => ProfilePage(user: settings.arguments as CharUser));
@@ -137,27 +151,13 @@ class _LandingState extends State<Landing> {
         child: Builder(builder: (context) {
           final children = [
             Text('Char', style: TextStyle(fontSize: 28.0)),
-            ...isDesktop
-                ? [
-                    SizedBox(width: 24.0),
-                    SizedBox(height: 60, child: VerticalDivider()),
-                    SizedBox(width: 24.0)
-                  ]
-                : [SizedBox(height: 24.0)],
+            ...isDesktop ? [SizedBox(width: 24.0), SizedBox(height: 60, child: VerticalDivider()), SizedBox(width: 24.0)] : [SizedBox(height: 24.0)],
             ElevatedButton(
               onPressed: loading
                   ? null
                   : () async {
                       setState(() => loading = true);
                       try {
-                        if (kIsWeb) {
-                          final provider = GoogleAuthProvider()
-                            ..scopes.addAll(['profile', 'email']);
-
-                          await FirebaseAuth.instance.signInWithPopup(provider);
-                          return;
-                        }
-
                         final googleUser = await GoogleSignIn().signIn();
                         final googleAuth = await googleUser?.authentication;
                         if (googleAuth != null) {
@@ -165,8 +165,7 @@ class _LandingState extends State<Landing> {
                             accessToken: googleAuth.accessToken,
                             idToken: googleAuth.idToken,
                           );
-                          await FirebaseAuth.instance
-                              .signInWithCredential(credential);
+                          await FirebaseAuth.instance.signInWithCredential(credential);
                         }
                       } finally {
                         setState(() => loading = false);
@@ -174,8 +173,7 @@ class _LandingState extends State<Landing> {
                     },
               style: ButtonStyle(
                 padding: MaterialStateProperty.all(EdgeInsets.all(22.0)),
-                shape: MaterialStateProperty.all(RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0))),
+                shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0))),
               ),
               child: Text('Sign in with Google'),
             ),

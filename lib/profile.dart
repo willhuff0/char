@@ -34,10 +34,16 @@ class _ProfilePageState extends State<ProfilePage> {
           Container(
             width: 152.0,
             height: 152.0,
-            decoration: BoxDecoration(image: DecorationImage(image: widget.user.getImage(fallbackUrl: FirebaseAuth.instance.currentUser?.photoURL), fit: BoxFit.fitHeight), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: widget.user.getImage(fallbackUrl: FirebaseAuth.instance.currentUser?.photoURL),
+                fit: BoxFit.fitHeight,
+              ),
+              shape: BoxShape.circle,
+            ),
           ),
           SizedBox(height: 24.0),
-          EditableValueField(
+          CharEditableTextField(
             title: Row(
               children: [
                 Text('Default alias'),
@@ -48,7 +54,8 @@ class _ProfilePageState extends State<ProfilePage> {
             onSave: (value) async {
               final previous = widget.user.defaultAlias;
               await widget.user.push(defaultAlias: value);
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
                   content: Text('Default alias updated!'),
                   action: SnackBarAction(
                     label: 'Undo',
@@ -56,34 +63,40 @@ class _ProfilePageState extends State<ProfilePage> {
                       await widget.user.push(defaultAlias: previous);
                       setState(() {});
                     },
-                  )));
+                  ),
+                ),
+              );
             },
           ),
           SizedBox(height: 24.0),
           ElevatedButton(
-              onPressed: () {
-                FirebaseAuth.instance.signOut();
-                Navigator.pop(context);
-              },
-              child: Text('Sign out'))
+            style: ButtonStyle(
+              shadowColor: MaterialStatePropertyAll(Colors.transparent),
+            ),
+            onPressed: () {
+              FirebaseAuth.instance.signOut();
+              Navigator.pop(context);
+            },
+            child: Text('Sign out'),
+          ),
         ],
       ),
     );
   }
 }
 
-class EditableValueField extends StatefulWidget {
+class CharEditableTextField extends StatefulWidget {
   final Widget title;
   final String initialText;
   final void Function(String value) onSave;
 
-  const EditableValueField({required this.title, required this.initialText, required this.onSave, super.key});
+  const CharEditableTextField({required this.title, required this.initialText, required this.onSave, super.key});
 
   @override
-  State<EditableValueField> createState() => _EditableValueFieldState();
+  State<CharEditableTextField> createState() => _CharEditableTextFieldState();
 }
 
-class _EditableValueFieldState extends State<EditableValueField> {
+class _CharEditableTextFieldState extends State<CharEditableTextField> {
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
   late String text;
@@ -141,28 +154,43 @@ class _EditableValueFieldState extends State<EditableValueField> {
             ),
           ),
           SizedBox(width: 14.0),
-          ElevatedButton(
-            onPressed: () {
-              if (isEditing) {
-                if (text != _controller.text) widget.onSave(_controller.text);
-              } else {
-                _focusNode.requestFocus();
-              }
-              setState(() {
-                isEditing = !isEditing;
-                text = _controller.text;
-              });
-            },
-            style: ButtonStyle(
-              shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0))),
-              padding: MaterialStateProperty.all(EdgeInsets.zero),
-            ),
-            child: SizedBox(
-              width: 50.0,
-              height: 50.0,
-              child: isEditing ? Icon(Icons.done) : Icon(Icons.edit),
-            ),
-          ),
+          isEditing
+              ? FilledButton(
+                  onPressed: () {
+                    if (text != _controller.text) widget.onSave(_controller.text);
+                    setState(() {
+                      isEditing = !isEditing;
+                      text = _controller.text;
+                    });
+                  },
+                  style: ButtonStyle(
+                    shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0))),
+                    padding: MaterialStateProperty.all(EdgeInsets.zero),
+                  ),
+                  child: SizedBox(
+                    width: 50.0,
+                    height: 50.0,
+                    child: Icon(Icons.done),
+                  ),
+                )
+              : FilledButton.tonal(
+                  onPressed: () {
+                    _focusNode.requestFocus();
+                    setState(() {
+                      isEditing = !isEditing;
+                      text = _controller.text;
+                    });
+                  },
+                  style: ButtonStyle(
+                    shape: MaterialStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0))),
+                    padding: MaterialStateProperty.all(EdgeInsets.zero),
+                  ),
+                  child: SizedBox(
+                    width: 50.0,
+                    height: 50.0,
+                    child: Icon(Icons.edit),
+                  ),
+                ),
         ],
       ),
     );

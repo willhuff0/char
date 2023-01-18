@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:char/firebase/message.dart';
 import 'package:char/firebase/room.dart';
 import 'package:char/firebase/user.dart';
 import 'package:char/main.dart';
@@ -15,7 +18,7 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  late final Future future;
+  late final Future<bool> future;
   late final CharUser user;
   late final List<CharRoom> rooms;
 
@@ -24,7 +27,6 @@ class _HomeState extends State<Home> {
     future = CharUser.idAndPull(widget.user.uid, createIfNew: true).then((value) async {
       user = value!;
       rooms = await user.getJoinedRooms();
-      if (mounted) setState(() {});
     }).then((value) => true);
     super.initState();
   }
@@ -46,11 +48,9 @@ class _HomeState extends State<Home> {
                 leading: Center(child: Text('Char', style: Theme.of(context).textTheme.titleLarge)),
                 title: isDesktop
                     ? Padding(
-                        padding: const EdgeInsets.only(
-                            right: 24, top: 10, bottom: 10),
+                        padding: const EdgeInsets.only(right: 24, top: 10, bottom: 10),
                         child: ConstrainedBox(
-                          constraints:
-                              BoxConstraints(minWidth: 500.0, maxWidth: 500.0),
+                          constraints: BoxConstraints(minWidth: 500.0, maxWidth: 500.0),
                           child: Center(child: CharSearchBar()),
                         ),
                       )
@@ -67,16 +67,11 @@ class _HomeState extends State<Home> {
                               Navigator.of(context).pushNamed('search');
                             },
                             icon: Icon(Icons.search),
-                            constraints:
-                                BoxConstraints(minWidth: 54.0, minHeight: 54.0),
+                            constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0),
                           ),
                           SizedBox(width: 4.0),
                         ],
-                        IconButton(
-                            onPressed: () {},
-                            icon: Icon(Icons.settings),
-                            constraints: BoxConstraints(
-                                minWidth: 54.0, minHeight: 54.0)),
+                        IconButton(onPressed: () {}, icon: Icon(Icons.settings), constraints: BoxConstraints(minWidth: 54.0, minHeight: 54.0)),
                         SizedBox(width: 4.0),
                         IconButton(
                             onPressed: () {
@@ -91,21 +86,12 @@ class _HomeState extends State<Home> {
                 ],
               ),
               body: ListView(
-                padding: EdgeInsets.all(14.0),
+                padding: EdgeInsets.symmetric(horizontal: 14.0, vertical: 24.0),
                 children: rooms
-                    .map((e) => ListTile(
-                          contentPadding: EdgeInsets.all(7.0),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0)),
-                          title: Text(e.name),
-                          subtitle: e.lastMessage == null ? null : Text(e.lastMessage!.accessibilityText),
-                          leading: Padding(
-                            padding: const EdgeInsets.all(7.0),
-                            child: CircleAvatar(),
-                          ),
-                          onTap: () {
-                            Navigator.pushNamed(context, 'chat', arguments: e);
-                          },
-                        ))
+                    .expand((room) => [
+                          CharRoomTile(user: user, room: room),
+                          SizedBox(height: 16.0),
+                        ])
                     .toList(),
               ),
               floatingActionButton: FloatingActionButton(
@@ -118,24 +104,25 @@ class _HomeState extends State<Home> {
                             onClosing: () {},
                             builder: (context) {
                               return Padding(
-                                padding: const EdgeInsets.all(24.0),
+                                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 18.0),
                                 child: Column(
                                   children: [
                                     Row(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
                                       children: [
                                         Expanded(
                                           child: TextField(
                                             minLines: 1,
                                             maxLines: 3,
                                             decoration: InputDecoration(
-                                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
-                                              hintText: 'Add members to new room',
+                                              //border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+                                              hintText: '@your-friends-username',
                                             ),
-                                            keyboardType: TextInputType.name,
+                                            keyboardType: TextInputType.text,
                                           ),
                                         ),
-                                        SizedBox(width: 14.0),
-                                        FloatingActionButton(
+                                        SizedBox(width: 24.0),
+                                        FilledButton.tonal(
                                           onPressed: () async {
                                             final room = await CharRoom.create(user, 'bruh');
                                             Navigator.pop(context, room);
@@ -165,9 +152,56 @@ class _HomeState extends State<Home> {
               ),
             );
           } else {
-            return Scaffold(body: Center(child: CircularProgressIndicator()));
+            return Scaffold(body: Center(child: Text('Char')));
           }
         });
+  }
+}
+
+class CharRoomTile extends StatefulWidget {
+  final CharUser user;
+  final CharRoom room;
+
+  const CharRoomTile({super.key, required this.user, required this.room});
+
+  @override
+  State<CharRoomTile> createState() => _CharRoomTileState();
+}
+
+class _CharRoomTileState extends State<CharRoomTile> {
+  late final StreamSubscription _lastMessageSubscription;
+  CharMessage? latestMessage;
+
+  @override
+  void initState() {
+    _lastMessageSubscription = widget.room.getLatestMessage().listen((event) {
+      setState(() => latestMessage = event);
+    });
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _lastMessageSubscription.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      tileColor: Theme.of(context).hoverColor,
+      contentPadding: EdgeInsets.symmetric(horizontal: 7.0, vertical: 14.0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14.0)),
+      title: Text(widget.room.name),
+      subtitle: widget.room.lastMessage == null ? null : Text(widget.room.lastMessage!.getTextDescription(widget.room)),
+      leading: Padding(
+        padding: const EdgeInsets.only(left: 14.0),
+        child: CircleAvatar(),
+      ),
+      onTap: () {
+        Navigator.pushNamed(context, 'chat', arguments: [widget.user, widget.room]);
+      },
+    );
   }
 }
 
@@ -184,9 +218,7 @@ class CharSearchBar extends StatelessWidget {
     return TextField(
       autofocus: focused,
       decoration: InputDecoration(
-        border: OutlineInputBorder(
-            borderSide: BorderSide.none,
-            borderRadius: BorderRadius.circular(999.9)),
+        border: OutlineInputBorder(borderSide: BorderSide.none, borderRadius: BorderRadius.circular(999.9)),
         fillColor: Colors.black26,
         contentPadding: EdgeInsets.symmetric(horizontal: 18.0, vertical: 0.0),
         filled: true,

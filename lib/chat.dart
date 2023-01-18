@@ -2,15 +2,16 @@ import 'dart:async';
 
 import 'package:char/firebase/message.dart';
 import 'package:char/firebase/room.dart';
-import 'package:char/home.dart';
+import 'package:char/firebase/user.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 class ChatRoomPage extends StatefulWidget {
+  final CharUser user;
   final CharRoom room;
 
-  const ChatRoomPage({required this.room, super.key});
+  const ChatRoomPage({required this.user, required this.room, super.key});
 
   @override
   State<ChatRoomPage> createState() => _ChatRoomPageState();
@@ -25,17 +26,18 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   @override
   void initState() {
     _controller = TextEditingController();
-    _messageChangesSubscription = widget.room.messagesStream.listen((event) async {
+    _messageChangesSubscription = widget.room.snapshots.listen((event) async {
       for (var change in event.docChanges) {
+        final timestamp = int.parse(change.doc.id);
         switch (change.type) {
           case DocumentChangeType.added:
-            messages[change.newIndex] = await CharMessage.fromMap(change.doc.data()!);
+            messages[timestamp] = await CharMessage.fromMap(timestamp, change.doc.data()!);
             break;
           case DocumentChangeType.modified:
-            messages[change.newIndex] = await CharMessage.fromMap(change.doc.data()!);
+            messages[timestamp] = await CharMessage.fromMap(timestamp, change.doc.data()!);
             break;
           case DocumentChangeType.removed:
-            messages.remove(change.oldIndex);
+            messages.remove(timestamp);
             break;
         }
       }
@@ -53,24 +55,34 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   @override
   Widget build(BuildContext context) {
+    final currentMessages = messages.values.toList();
     return Scaffold(
+      appBar: AppBar(
+        centerTitle: false,
+        title: Text(widget.room.name),
+        shape: Border(bottom: BorderSide(color: Colors.white10, width: 1.0)),
+      ),
       body: Column(
         children: [
+          SizedBox(height: 8.0),
           Expanded(
-            child: CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  centerTitle: false,
-                  title: Text(widget.room.name),
-                  shape: Border(bottom: BorderSide(color: Colors.white10, width: 1.0)),
-                ),
-                SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    final message = messages[index];
-                    return message!.buildWidget();
-                  }, childCount: messages.length),
-                ),
-              ],
+            child: ListView.builder(
+              reverse: true,
+              itemBuilder: (context, index) {
+                final previousMessage = index == messages.length - 1 ? null : currentMessages[(messages.length - 2) - index];
+                final message = currentMessages[(messages.length - 1) - index];
+                return Padding(
+                  padding: EdgeInsets.only(
+                    top: previousMessage != null
+                        ? message.timestamp > previousMessage.timestamp + 2 * 60 * 1000
+                            ? 10.0
+                            : 0.0
+                        : 0.0,
+                  ),
+                  child: message.buildWidget(context, isFromSelf: message.from == widget.user.ref.id),
+                );
+              },
+              itemCount: messages.length,
             ),
           ),
           Material(
@@ -80,12 +92,12 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
             child: SafeArea(
               top: false,
               child: Container(
-                height: 70.0,
+                height: 60.0,
                 padding: EdgeInsets.all(8.0),
                 child: TextField(
                   controller: _controller,
                   textInputAction: TextInputAction.newline,
-                  keyboardType: TextInputType.text,
+                  //keyboardType: TextInputType.multiline,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(borderSide: BorderSide.none, borderRadius: BorderRadius.circular(999.9)),
                     fillColor: Colors.black26,
@@ -106,7 +118,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                         icon: Icon(Icons.send),
                         onPressed: () {
                           if (_controller.text.isNotEmpty) {
-                            widget.room.
+                            widget.room.pushMessage(CharTextMessage(widget.user.ref.id, _controller.text));
+                            _controller.clear();
+                            //setState(() => _controller.clear());
                           }
                         },
                       ),
